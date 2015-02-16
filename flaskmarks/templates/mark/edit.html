@@ -1,31 +1,15 @@
 {% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
 {% block content %}
-<h1>Edit Bookmark</h1>
-<div id="edit" class="markform shadow4 roundcorner5">
-  <form action="" method="POST">
-    {{form.hidden_tag()}}
-    <p>
-      {% for error in form.title.errors %}
-        {{ error }} <br />
-      {% endfor %}
-      {{ form.title.label('Title') }} <br />
-      {{ form.title(size=20) }}
-    </p>
-    <p>
-      {% for error in form.url.errors %}
-        {{ error }} <br />
-      {% endfor %}
-      {{ form.url.label('URL') }} <br />
-      {{ form.url(size=20) }}
-    </p>
-    <p>
-      {% for error in form.tags.errors %}
-        {{ error }} <br />
-      {% endfor %}
-      {{ form.tags.label('Tags') }} <br />
-      {{ form.tags(size=20) }}
-    </p>
-      <input type="submit" value="Edit bookmark" />
-  </form>
-</div>
+    <div class="container" role="main">
+        {% include "flash.html" %}
+        <h2>Edit {{ mark.type }} - {{ mark.title|truncate(50) }}</h2>
+        <div class="btn-toolbar btn-group-xs" role="toolbar">
+            <div class="btn-group btn-group-xs">
+                <a href="{{ url_for('marks.new_mark', url=mark.url, type=mark.type) }}" class="btn btn-info">Clone to new</a>
+                <a href="{{ url_for('marks.delete_mark', id=mark.id) }}" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+        {{ wtf.quick_form(form,  button_map={'submit_button': 'primary'}) }}
+    </div>
 {% endblock %}

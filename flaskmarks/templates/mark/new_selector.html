@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="container" role="main">
+        <h2>Select mark type</h2>
+        <div class="form-group">
+            <a href="{{ url_for('marks.new_mark', type='bookmark') }}" class="btn btn-primary">Bookmark</a>
+            <a href="{{ url_for('marks.new_mark', type='feed') }}" class="btn btn-primary">Feed</a>
+            <a href="{{ url_for('marks.new_mark', type='youtube') }}" class="btn btn-primary">Youtube</a>
+        </div>
+    </div>
+{% endblock %}

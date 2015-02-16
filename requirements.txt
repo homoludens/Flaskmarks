@@ -1,15 +1,18 @@
 #requirements
 
-cryptacular
-BeautifulSoup
-sqlalchemy==0.7.10
 flask
 flask-login
 flask-sqlalchemy
-sqlalchemy-migrate
-flask-whooshalchemy
-flask-wtf
+flask-debugtoolbar
+flask-migrate
+flask-script
+flask-bcrypt
+flask-bootstrap
+flask-wtf==0.9.2
+BeautifulSoup
 WebHelpers2
-flup
+wtforms
 pep8
 feedparser
+flask_whooshalchemy
+readability-lxml

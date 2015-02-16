@@ -1,0 +1,16 @@
+- [ ] Get sorting and listing to work (again) after 'metadata in separate table' migration.
+- [ ] RESTful everything.
+- [ ] Separate YouTube type for expanding the features in the feed view. Features like pages etc. Also for easier YouTube feedmark creations.
+- [ ] Meta system for extending marks with custom data (ex: YouTube feeds args etc..).
+- [ ] Meta system for extending user objects with custom data (preferences etc..)
+- [ ] Consider categories for an stricter 'categorization' of marks.
+- [ ] Notes with revisions (from pulpy).
+- [ ] Calendar
+- [ ] Bootstrapify all templates.
+- [ ] Update screen shots.
+- [ ] Write tests...
+- [ ] Changeable icons not determined by type.
+- [x] Tag cloud.
+- [x] Blueprint the views, and cleanup code!
+- [x] Tags for all object types.
+- [x] Export / Import marks.

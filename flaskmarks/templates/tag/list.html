@@ -1,0 +1,19 @@
+
+<div class="list-group">
+    {% for tag in tags.items %}
+        <a href="{{ url_for('marks.mark_q_tag', slug=tag.title) }}" class="list-group-item">
+            <span class="badge">{{ tag.marks | length }}</span>
+            <h4 class="list-group-item-heading">{{ tag.title }}</h4>
+        </a>
+    {% endfor %}
+</div>
+
+<ul class="pager">
+{% if tags.has_prev %}
+    <li><a href="{{ url_for(request.endpoint, page=tags.prev_num) }}">Previous</a></li>
+{% endif %}
+{% if tags.has_next %}
+    <li><a href="{{ url_for(request.endpoint, page=tags.next_num) }}">Next</a></li>
+{% endif %}
+</ul>
+
