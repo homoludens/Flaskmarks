@@ -4,8 +4,9 @@ from sqlalchemy import and_, or_, desc
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.associationproxy import association_proxy
 from datetime import datetime as dt
-from ..core.setup import db, config
+from ..core.setup import app, db, config
 from .tag import Tag
+import flask.ext.whooshalchemy
 
 ass_tbl = db.Table('marks_tags', db.metadata,
                    db.Column('left_id', db.Integer, db.ForeignKey('marks.id')),
@@ -15,10 +16,14 @@ ass_tbl = db.Table('marks_tags', db.metadata,
 
 class Mark(db.Model):
     __tablename__ = 'marks'
+    __searchable__ = ['title', 'description', 'full_html']
+
     id = db.Column(db.Integer, primary_key=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     type = db.Column(db.Unicode(255), nullable=False)
     title = db.Column(db.Unicode(255), nullable=False)
+    description = db.Column(db.Unicode(4096), nullable=True)
+    full_html = db.Column(db.Unicode, nullable=True)
     url = db.Column(db.Unicode(512), nullable=False)
     clicks = db.Column(db.Integer, default=0)
     last_clicked = db.Column(db.DateTime)
@@ -67,3 +72,6 @@ class Mark(db.Model):
 
     def __repr__(self):
         return '<Mark %r>' % (self.title)
+
+
+flask.ext.whooshalchemy.whoosh_index(app, Mark)

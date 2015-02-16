@@ -14,3 +14,5 @@ WebHelpers2
 wtforms
 pep8
 feedparser
+flask_whooshalchemy
+readability-lxml

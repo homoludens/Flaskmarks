@@ -3,10 +3,12 @@
 from .base import Form, strip_filter
 from ..core.setup import db
 from ..models.tag import Tag
+import flask.ext.whooshalchemy
 
 from wtforms import (
     Field,
     TextField,
+    TextAreaField,
     BooleanField,
     PasswordField,
     SelectField,
@@ -63,6 +65,11 @@ class MarkForm(Form):
     title = TextField('Title',
                       [validators.Length(min=0, max=255)],
                       filters=[strip_filter])
+
+    description = TextAreaField(u'Description',
+                                [validators.optional(),
+                                validators.length(max=4096)])
+
     url = TextField('URL',
                     [validators.Length(min=4, max=512),
                      validators.URL(require_tld=False,

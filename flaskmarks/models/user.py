@@ -70,7 +70,9 @@ class User(db.Model):
     def q_marks_by_string(self, page, string, marktype):
         string = "%"+string+"%"
         base = self.my_marks().filter(or_(Mark.title.like(string),
-                                          Mark.url.like(string)))
+                                          Mark.url.like(string),
+                                          Mark.full_html.like(string),
+                                          Mark.description.like(string)))
         return base.order_by(desc(Mark.clicks))\
                    .paginate(page, self.per_page, False)
 

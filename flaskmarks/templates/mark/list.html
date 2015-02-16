@@ -20,6 +20,12 @@
             </a>
             {% endif %}
         </h4>
+
+        {% if mark.description %}
+            <div>{{ mark.description }}</div>
+        {% endif %}
+
+
         {% if mark.tags %}
             <div class="btn-toolbar btn-group-xs" role="toolbar">
                 <div class="btn-group btn-group-xs">
@@ -29,6 +35,8 @@
                     {% endfor %}
                 </div>
                 <a href="{{ url_for('marks.edit_mark', id=mark.id) }}" class="btn btn-default"><span class="glyphicon glyphicon-edit"></span> edit</a>
+
+                <a href="{{ url_for('marks.view_html_mark', id=mark.id) }}" class="btn btn-default"><span class="glyphicon glyphicon-globe"></span> View html</a>
             </div>
         {% endif %}
     </li>

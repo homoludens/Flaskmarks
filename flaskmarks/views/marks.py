@@ -15,6 +15,7 @@ from flask import (
 from flask.ext.login import login_user, logout_user, login_required
 
 from BeautifulSoup import BeautifulSoup as BSoup
+from readability.readability import Document
 from urllib import urlopen
 from datetime import datetime
 from urlparse import urlparse, urljoin
@@ -95,11 +96,19 @@ def search_string(page=1):
     if not q and not t:
         return redirect(url_for('marks.allmarks'))
 
-    m = g.user.q_marks_by_string(page, q, t)
+    #m = g.user.q_marks_by_string(page, q, t)
+
+    results = Mark.query.whoosh_search(q).filter(Mark.owner_id == g.user.id).paginate(page, 50, False)
+
+
+    #print results
+
+    #print m
+
     return render_template('mark/index.html',
                            title='Search results for: %s' % (q),
                            header="Search results for: '%s'" % (q),
-                           marks=m)
+                           marks=results)
 
 
 @marks.route('/mark/new', methods=['GET'])
@@ -134,8 +143,18 @@ def new_mark(type):
         m.type = type
 
         if not form.title.data:
+            full_html = urlopen(form.url.data)
+            html = full_html.read()
             soup = BSoup(urlopen(form.url.data))
             m.title = soup.title.string
+
+            readable_html = Document(html).summary()
+
+            soup_page = BSoup(full_html)
+            m.full_html = readable_html
+            #m.full_html = u' '.join(readable_html).encode('utf-8').strip()
+
+
         db.session.add(m)
         db.session.commit()
         flash('New %s: "%s", added.'
@@ -205,6 +224,19 @@ def edit_mark(id):
                            title='Edit mark - %s' % m.title,
                            form=form
                            )
+
+
+@marks.route('/mark/viewhtml/<int:id>', methods=['GET', 'POST'])
+@login_required
+def view_html_mark(id):
+    m = g.user.get_mark_by_id(id)
+    if not m:
+        abort(403)
+    return render_template('mark/view_html.html',
+                           mark=m,
+                           title='View html for mark - %s' % m.title,
+                           )
+
 
 
 @marks.route('/mark/delete/<int:id>')

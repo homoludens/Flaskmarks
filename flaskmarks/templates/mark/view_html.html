@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+{% block content %}
+    <div class="container" role="main">
+        {% include "flash.html" %}
+        <h2>View HTML {{ mark.type }} - {{ mark.title|truncate(50) }}</h2>
+        <div class="btn-toolbar btn-group-xs" role="toolbar">
+            <div class="btn-group btn-group-xs">
+                {{mark.full_html|safe}}
+            </div>
+        </div>
+    </div>
+{% endblock %}
