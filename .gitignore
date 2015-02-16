@@ -51,3 +51,12 @@ man
 # vim files
 *.swp
 *.swo
+
+#kate swap
+*.*~
+
+#virtualenv
+venv
+
+#whoosh database
+flaskmarks_search.db
