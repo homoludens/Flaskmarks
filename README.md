@@ -18,9 +18,9 @@ This can be used as "Read latter" app.
 Setting up virual envirement
 ============================
 
-`$ sudo pip install virtualenv`
-`$ virtualenv venv`
-`$ . venv/bin/activate`
+* `$ sudo pip install virtualenv`
+* `$ virtualenv venv`
+* `$ . venv/bin/activate`
 
 Install
 =======
