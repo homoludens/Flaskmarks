@@ -1,8 +1,8 @@
 # flaskmarks/core/error.py
 
 from flask import flash, redirect, url_for, g, request
-from flask.ext.login import current_user
-from urlparse import urlparse, urljoin
+from flask_login import current_user
+from urllib.parse import urlparse, urljoin
 from .setup import app, lm
 from ..models import User
 

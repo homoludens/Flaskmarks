@@ -12,13 +12,13 @@ from flask import (
     jsonify,
     json
 )
-from flask.ext.login import login_user, logout_user, login_required
+from flask_login import login_user, logout_user, login_required
 
-from BeautifulSoup import BeautifulSoup as BSoup
+from bs4 import BeautifulSoup as BSoup
 from readability.readability import Document
-from urllib import urlopen
+from urllib.request import urlopen
 from datetime import datetime
-from urlparse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin
 import feedparser
 
 from ..core.setup import app, db
@@ -341,6 +341,6 @@ def mark_meta(id):
         m.clicks = m.clicks + 1
         m.last_clicked = datetime.utcnow()
         db.session.add(m)
-        db.session.commit()
+        #db.session.commit()
         return render_template('meta.html', url=m.url)
     abort(403)

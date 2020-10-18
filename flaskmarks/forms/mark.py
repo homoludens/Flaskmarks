@@ -3,7 +3,7 @@
 from .base import Form, strip_filter
 from ..core.setup import db
 from ..models.tag import Tag
-import flask.ext.whooshalchemy
+#import flask_whooshalchemy
 
 from wtforms import (
     Field,

@@ -8,7 +8,7 @@ from flask import (
     redirect,
     url_for,
 )
-from flask.ext.login import login_required
+from flask_login import login_required
 from ..core.setup import config, db, bcrypt
 from ..forms import UserRegisterForm, UserProfileForm
 from ..models import User

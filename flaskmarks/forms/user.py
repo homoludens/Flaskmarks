@@ -43,7 +43,7 @@ class UserProfileForm(UserRegisterForm):
                            coerce=int,
                            choices=[(n, n) for n in range(10, 31)])
     sort_type = SelectField('Default sort type',
-                            coerce=unicode,
+                            #coerce=unicode,
                             choices=[('clicks', 'Clicks'),
                                      ('dateasc', 'Date asc'),
                                      ('datedesc', 'Date desc')])

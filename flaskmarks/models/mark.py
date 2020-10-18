@@ -6,7 +6,13 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from datetime import datetime as dt
 from ..core.setup import app, db, config
 from .tag import Tag
-import flask.ext.whooshalchemy
+
+#import flask_whooshalchemy
+#import flask_msearch
+from flask_msearch import Search
+
+search = Search()
+search.init_app(app)
 
 ass_tbl = db.Table('marks_tags', db.metadata,
                    db.Column('left_id', db.Integer, db.ForeignKey('marks.id')),
@@ -74,4 +80,9 @@ class Mark(db.Model):
         return '<Mark %r>' % (self.title)
 
 
-flask.ext.whooshalchemy.whoosh_index(app, Mark)
+search.create_index()
+search.create_index(Mark)
+#flask_whooshalchemy.whoosh_index(app, Mark)
+
+
+
