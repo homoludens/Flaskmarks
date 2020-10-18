@@ -18,9 +18,9 @@ This can be used as "Read latter" app.
 Setting up virual envirement
 ============================
 
-$ sudo pip install virtualenv
-$ virtualenv venv
-$ . venv/bin/activate
+`$ sudo pip install virtualenv`
+`$ virtualenv venv`
+`$ . venv/bin/activate`
 
 Install
 =======
@@ -77,3 +77,14 @@ Useful Links
 * [Flask Blueprints](http://flask.pocoo.org/docs/blueprints/)
 * [Flask-WhooshAlchemy](https://github.com/gyllstromk/Flask-WhooshAlchemy)
 * [python-readability](https://github.com/buriy/python-readability)
+
+
+TODO
+====
+
+* Changed flask_whooshalchemy with flask_msearch
+* Adding bookmark and search is working.
+* why is it not genereting tags and description?
+
+
+
