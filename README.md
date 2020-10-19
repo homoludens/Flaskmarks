@@ -86,12 +86,14 @@ Useful Links
 * [python-readability](https://github.com/buriy/python-readability)
 
 
+Using
+====
+
+Import of firefox bookmark from exported json kinda works. Go to "Show all bookmarks" and than to "Backup".
+
 TODO
 ====
 
-* Changed flask_whooshalchemy with flask_msearch
-* Adding bookmark and search is working.
-* why is it not genereting tags and description?
 
 
 
