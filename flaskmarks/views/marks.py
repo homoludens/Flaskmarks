@@ -20,6 +20,7 @@ from urllib.request import urlopen
 from datetime import datetime
 from urllib.parse import urlparse, urljoin
 import feedparser
+from gensim.summarization import keywords
 
 from ..core.setup import app, db
 from ..core.error import is_safe_url
@@ -33,6 +34,7 @@ from ..forms import (
     MarksImportForm
 )
 from ..models import Mark
+from ..models.tag import Tag
 
 marks = Blueprint('marks', __name__)
 
@@ -152,6 +154,14 @@ def new_mark(type):
 
             soup_page = BSoup(full_html)
             m.full_html = readable_html
+            
+            
+            # Add tags and keywords here
+            auto_tags_full = keywords(readable_html).split('\n')
+            
+            for auto_tag in auto_tags_full[:5]:
+                m.tags.append(Tag(auto_tag))
+            
             #m.full_html = u' '.join(readable_html).encode('utf-8').strip()
 
 

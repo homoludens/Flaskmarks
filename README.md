@@ -33,6 +33,13 @@ Install
 * run: `python run.py runserver`
 
 
+>>> python3
+>>> import nltk
+>>> nltk.download('punkt')
+>>> nltk.download('averaged_perceptron_tagger')
+>>> nltk.download('wordnet')
+
+
 Exit virtualenv
 ==============
 
