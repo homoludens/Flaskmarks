@@ -36,6 +36,10 @@ from ..forms import (
 from ..models import Mark
 from ..models.tag import Tag
 
+import logging
+
+logging.basicConfig(filename='record.log', level=logging.DEBUG, format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+
 marks = Blueprint('marks', __name__)
 
 
@@ -118,6 +122,7 @@ def search_string(page=1):
 def new_mark_selector():
     return render_template('mark/new_selector.html',
                            title='Select new mark type')
+
 
 
 @marks.route('/mark/new/<string:type>', methods=['GET', 'POST'])
@@ -303,9 +308,73 @@ def export_marks():
     return jsonify(marks=d)
 
 
+
+###################
+# Import Firefox JSON #
+###################
+def iterdict(d):
+  app.logger.info('Info level log')
+  i = 0
+  if 'children' in d:
+    iterdict(d['children'])
+  else:
+      for bookmark in d:
+        if 'children' in bookmark:
+            iterdict(bookmark['children'])  
+        if 'uri' in bookmark: 
+            i = i + 1
+            try:
+                app.logger.debug(bookmark['uri'])
+                new_imported_mark(bookmark['uri'])
+            except Exception as e:
+                app.logger.debug(e)
+                flash('Exception %s, not added. %s'
+                        % (bookmark['uri'], e), category='danger')
+      
+      
+###################
+# Import mark from uri #
+###################
+def new_imported_mark(uri):
+    u = g.user
+    m = Mark(u.id)
+    m.type = 'bookmark'
+    #https://lpi.oregonstate.edu/mic/
+
+
+    app.logger.debug(uri)
+    full_html = urlopen(uri)
+    
+    html = full_html.read()
+    app.logger.debug(html)
+    soup = BSoup(html, 'html.parser')
+    app.logger.debug("soup")
+    app.logger.debug(soup)
+    
+    m.title = soup.title.string
+    
+    m.url = uri
+    readable_html = Document(html).summary()
+
+    m.full_html = readable_html
+    
+    auto_tags_full = keywords(readable_html).split('\n')
+    for auto_tag in auto_tags_full[:5]:
+        m.tags.append(Tag(auto_tag))
+                    
+    db.session.add(m)
+    db.session.commit()
+    
+    flash('New %s: "%s", added.'
+            % (type, m.title), category='success')
+    
+    return redirect(url_for('marks.allmarks'))
+
 @marks.route('/marks/import', methods=['GET', 'POST'])
 @login_required
 def import_marks():
+    
+    app.logger.error('Processing default request')
     u = g.user
     form = MarksImportForm(obj=u)
     """
@@ -318,12 +387,20 @@ def import_marks():
             flash('%s' % (detail), category='danger')
             return redirect(url_for('profile.view'))
         count = 0
-        for c in data['marks']:
-            m = Mark(u.id)
-            m.insert_from_import(c)
-            count += 1
-            db.session.add(m)
-            db.session.commit()
+        
+        #firefox export
+        if 'children' in data:
+            iterdict(data)
+        
+        #bookmarko export
+        if 'marks' in data:
+            for c in data['marks']:
+                m = Mark(u.id)
+                m.insert_from_import(c)
+                count += 1
+                db.session.add(m)
+                db.session.commit()
+                
         flash('%s marks imported' % (count), category='success')
         return redirect(url_for('profile.userprofile'))
     """
