@@ -20,7 +20,10 @@ from urllib.request import urlopen
 from datetime import datetime
 from urllib.parse import urlparse, urljoin
 import feedparser
-from gensim.summarization import keywords
+
+from newspaper import Article
+#from gensim.summarization import keywords
+
 
 from ..core.setup import app, db
 from ..core.error import is_safe_url
@@ -150,24 +153,45 @@ def new_mark(type):
         m.type = type
 
         if not form.title.data:
-            full_html = urlopen(form.url.data)
-            html = full_html.read()
-            soup = BSoup(urlopen(form.url.data))
-            m.title = soup.title.string
-
-            readable_html = Document(html).summary()
-
+            
+            #newspaper3k
+            url = form.url.data
+            article = Article(url)
+            article.download()
+            full_html = article.html
             soup_page = BSoup(full_html)
+            readable_html = Document(full_html).summary()
+            
+            m.title = soup_page.title.string
             m.full_html = readable_html
             
-            
-            # Add tags and keywords here
-            auto_tags_full = keywords(readable_html).split('\n')
-            
-            for auto_tag in auto_tags_full[:5]:
+            article.parse()
+            article.nlp()
+            # Add tags and keywords here            
+            for auto_tag in article.keywords[:5]:
                 m.tags.append(Tag(auto_tag))
+                
+            m.description = article.summary
+
             
-            #m.full_html = u' '.join(readable_html).encode('utf-8').strip()
+            #full_html = urlopen(form.url.data)
+            #html = full_html.read()
+            #soup = BSoup(urlopen(form.url.data))
+            #m.title = soup.title.string
+
+            #readable_html = Document(html).summary()
+
+            #soup_page = BSoup(full_html)
+            #m.full_html = readable_html
+            
+            
+            ## Add tags and keywords here
+            #auto_tags_full = keywords(readable_html).split('\n')
+            
+            #for auto_tag in auto_tags_full[:5]:
+                #m.tags.append(Tag(auto_tag))
+            
+            ##m.full_html = u' '.join(readable_html).encode('utf-8').strip()
 
 
         db.session.add(m)

@@ -91,6 +91,18 @@ Using
 
 Import of firefox bookmark from exported json kinda works. Go to "Show all bookmarks" and than to "Backup".
 
+
+
+Keyword extraction options
+==========================
+
+I have tried this options for keyword extraction. Newspaper3k is the current one.
+
+* https://github.com/codelucas/newspaper - Newspaper3k: Article scraping & curation
+* https://radimrehurek.com/gensim/ - Analyze plain-text documents for semantic structure
+* https://github.com/csurfer/rake-nltk - Rapid Automatic Keyword Extraction algorithm
+
+
 TODO
 ====
 

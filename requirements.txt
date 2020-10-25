@@ -17,8 +17,11 @@ feedparser
 flask-msearch
 whoosh 
 blinker
+
 readability-lxml
 email_validator
+
+newspaper3k
 gensim
 
 
