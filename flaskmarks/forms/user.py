@@ -1,7 +1,7 @@
 # flaskmarks/forms/user.py
 
 from wtforms import (
-    TextField,
+    StringField,
     PasswordField,
     SelectField,
     HiddenField,
@@ -13,10 +13,10 @@ from .base import Form, strip_filter
 
 
 class UserRegisterForm(Form):
-    username = TextField('Username',
+    username = StringField('Username',
                          [validators.Length(min=4, max=32)],
                          filters=[strip_filter])
-    email = TextField('Email',
+    email = StringField('Email',
                       [validators.Length(min=4, max=320),
                        validators.Email(message='Not a valid email address')],
                       filters=[strip_filter])
@@ -53,5 +53,5 @@ class UserProfileForm(UserRegisterForm):
 class MarksImportForm(Form):
     file = FileField('Import file (Json)', validators=[
                      FileRequired(),
-                     FileAllowed(['json'], 'Only json files')])
+                     FileAllowed(['json', 'txt'], 'Only json files')])
     submit_button = SubmitField('Upload')

@@ -11,8 +11,11 @@ from .tag import Tag
 #import flask_msearch
 from flask_msearch import Search
 
-search = Search()
+search = Search(db=db)
 search.init_app(app)
+
+# search.update_index()
+
 
 ass_tbl = db.Table('marks_tags', db.metadata,
                    db.Column('left_id', db.Integer, db.ForeignKey('marks.id')),
@@ -80,8 +83,8 @@ class Mark(db.Model):
         return '<Mark %r>' % (self.title)
 
 
-search.create_index()
-search.create_index(Mark)
+# search.create_index()
+# search.create_index(Mark)
 #flask_whooshalchemy.whoosh_index(app, Mark)
 
 

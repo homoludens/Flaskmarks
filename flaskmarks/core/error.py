@@ -21,7 +21,7 @@ def before_request():
 def unauthorized(error):
     if request.referrer \
         and is_safe_url(request.referrer) \
-            and request.referrer is not "/":
+            and request.referrer != "/":
         flash('Unauthorized access.', category='danger')
     return redirect(url_for('auth.login'))
 

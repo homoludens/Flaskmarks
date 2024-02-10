@@ -1,6 +1,6 @@
 #requirements
 
-flask
+flask==2.3.3 
 flask-login
 flask-sqlalchemy
 flask-debugtoolbar
@@ -21,8 +21,12 @@ blinker
 readability-lxml
 email_validator
 
-newspaper3k
+tldextract
+yt_dlp
+
+newspaper4k
 gensim
+celery
 
 
 

@@ -1,5 +1,6 @@
+import wtforms
 from wtforms import (
-    TextField,
+    StringField,
     BooleanField,
     PasswordField,
     validators,
@@ -7,9 +8,8 @@ from wtforms import (
 )
 from .base import Form, strip_filter
 
-
 class LoginForm(Form):
-    username = TextField('Username or Email',
+    username = StringField('Username or Email',
                          [validators.Length(min=4, max=255)],
                          filters=[strip_filter])
     password = PasswordField('Password',

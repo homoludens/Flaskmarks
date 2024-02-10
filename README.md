@@ -92,7 +92,6 @@ Using
 Import of firefox bookmark from exported json kinda works. Go to "Show all bookmarks" and than to "Backup".
 
 
-
 Keyword extraction options
 ==========================
 
@@ -105,6 +104,8 @@ I have tried this options for keyword extraction. Newspaper3k is the current one
 
 TODO
 ====
+
+* try out http://getskeleton.com css instead of bootstrap, looks much simpler.
 
 
 
