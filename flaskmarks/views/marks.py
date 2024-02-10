@@ -1,5 +1,5 @@
 # flaskmarks/views/profile.py
-
+from flask.globals import _request_ctx_stack
 from flask import (
     Blueprint,
     render_template,
@@ -13,19 +13,22 @@ from flask import (
     json
 )
 from flask_login import login_user, logout_user, login_required
-
-from bs4 import BeautifulSoup as BSoup
+from werkzeug.utils import secure_filename
+import os
+# from bs4 import BeautifulSoup as BSoup
 from readability.readability import Document
 from urllib.request import urlopen
 from datetime import datetime
 from urllib.parse import urlparse, urljoin
 import feedparser
-
-from newspaper import Article
+from typing import Iterable
+from newspaper import Article, ArticleBinaryDataException
 #from gensim.summarization import keywords
-
+from werkzeug.utils import secure_filename
+import tldextract
 
 from ..core.setup import app, db
+from ..core.youtube import get_youtube_info, check_url_video
 from ..core.error import is_safe_url
 from ..forms import (
     LoginForm,
@@ -40,7 +43,20 @@ from ..models import Mark
 from ..models.tag import Tag
 
 import logging
+from urllib.parse import urlparse
 
+
+def uri_validator(url_to_test):
+    """
+    Validate URL
+    return true or false
+    """
+    try:
+        result = urlparse(url_to_test)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
+    
 logging.basicConfig(filename='record.log', level=logging.DEBUG, format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
 marks = Blueprint('marks', __name__)
@@ -107,7 +123,7 @@ def search_string(page=1):
 
     #m = g.user.q_marks_by_string(page, q, t)
 
-    results = Mark.query.whoosh_search(q).filter(Mark.owner_id == g.user.id).paginate(page, 50, False)
+    results = Mark.query.whoosh_search(q).filter(Mark.owner_id == g.user.id).paginate(page=page, per_page=50, error_out=False)
 
 
     #print results
@@ -159,10 +175,12 @@ def new_mark(type):
             article = Article(url)
             article.download()
             full_html = article.html
-            soup_page = BSoup(full_html)
-            readable_html = Document(full_html).summary()
+
+            readable = Document(full_html)
+            readable_html = readable.summary()
+            readable_title = readable.title()
             
-            m.title = soup_page.title.string
+            m.title = readable_title
             m.full_html = readable_html
             
             article.parse()
@@ -172,27 +190,6 @@ def new_mark(type):
                 m.tags.append(Tag(auto_tag))
                 
             m.description = article.summary
-
-            
-            #full_html = urlopen(form.url.data)
-            #html = full_html.read()
-            #soup = BSoup(urlopen(form.url.data))
-            #m.title = soup.title.string
-
-            #readable_html = Document(html).summary()
-
-            #soup_page = BSoup(full_html)
-            #m.full_html = readable_html
-            
-            
-            ## Add tags and keywords here
-            #auto_tags_full = keywords(readable_html).split('\n')
-            
-            #for auto_tag in auto_tags_full[:5]:
-                #m.tags.append(Tag(auto_tag))
-            
-            ##m.full_html = u' '.join(readable_html).encode('utf-8').strip()
-
 
         db.session.add(m)
         db.session.commit()
@@ -305,7 +302,7 @@ def ajax_mark_inc():
         m = g.user.get_mark_by_id(id)
         if not m:
             return jsonify(status='forbidden')
-        m.clicks = mclicks + 1
+        m.clicks = m.clicks + 1
         m.last_clicked = datetime.utcnow()
         db.session.add(m)
         db.session.commit()
@@ -332,10 +329,9 @@ def export_marks():
     return jsonify(marks=d)
 
 
-
-###################
+#######################
 # Import Firefox JSON #
-###################
+#######################
 def iterdict(d):
   app.logger.info('Info level log')
   i = 0
@@ -351,48 +347,161 @@ def iterdict(d):
                 app.logger.debug(bookmark['uri'])
                 new_imported_mark(bookmark['uri'])
             except Exception as e:
-                app.logger.debug(e)
-                flash('Exception %s, not added. %s'
-                        % (bookmark['uri'], e), category='danger')
-      
-      
+                app.logger.error(e)
+                # app.logger.error('Exception %s, not added. %s' % (bookmark['uri'], e))
+                # print('Exception %s, not added. %s' % (bookmark['uri'], e))
+
+
+def iterdict2(d):
+    """
+    data = json.load(open('file.json'))
+    a = iterdict2(data)
+    """
+    i = 0
+    final_list = []
+    if 'children' in d:
+        l = iterdict2(d['children'])
+        final_list.append(l)
+    else:
+        for bookmark in d:
+            if 'children' in bookmark:
+                l = iterdict2(bookmark['children'])
+                final_list.append(l)
+            if 'uri' in bookmark:
+                i = i + 1
+                print(i)
+                try:
+                    uri = bookmark['uri']
+                    final_list.append(uri)
+                    # print(bookmark['uri'])
+
+                    # print(bookmark.keys())
+                except Exception as e:
+                    print(f"Exception: {e}")
+                    uri = ''
+    return list(flatten(final_list))
+
+
+def flatten(items):
+    """Yield items from any nested iterable; see Reference."""
+    for x in items:
+        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+            for sub_x in flatten(x):
+                yield sub_x
+        else:
+            yield x
+
+
 ###################
 # Import mark from uri #
 ###################
-def new_imported_mark(uri):
+def new_imported_mark(url):
+    print(f"new_imported_mark: {url}")
+    # test if it looks like url
+    if not uri_validator(url):
+        print("not valid uri")
+        return redirect(url_for('marks.allmarks'))
+
+    url_domain = tldextract.extract(url).domain
+    readable_title = None
+
     u = g.user
     m = Mark(u.id)
     m.type = 'bookmark'
-    #https://lpi.oregonstate.edu/mic/
+    # https://lpi.oregonstate.edu/mic/
 
+    m.url = url
+    m.title = url
+    soup_page = False
 
-    app.logger.debug(uri)
-    full_html = urlopen(uri)
-    
-    html = full_html.read()
-    app.logger.debug(html)
-    soup = BSoup(html, 'html.parser')
-    app.logger.debug("soup")
-    app.logger.debug(soup)
-    
-    m.title = soup.title.string
-    
-    m.url = uri
-    readable_html = Document(html).summary()
+    existing_mark = Mark.query.filter(Mark.url == url).all()
+    if len(existing_mark) > 0:
+        print('Existing bookmark %s: "%s", added.' % (type, m.title))
+        # flash('Existing bookmark %s: "%s", added.' % (type, m.title), category='success')
+        return redirect(url_for('marks.allmarks'))
+    else:
+        if url_domain in ['google1', 'upwork1', 'qlik1']:
+            m.tags.append(Tag(url_domain))
 
-    m.full_html = readable_html
-    
-    auto_tags_full = keywords(readable_html).split('\n')
-    for auto_tag in auto_tags_full[:5]:
-        m.tags.append(Tag(auto_tag))
-                    
+            db.session.add(m)
+            db.session.commit()
+
+            return redirect(url_for('marks.allmarks'))
+        
+        elif url_domain in ['youtube', 'youtu'] and check_url_video(url):
+            print(url_domain)
+            youtube_info_dict = get_youtube_info(url)
+            m.title = youtube_info_dict['title']
+            m.description = youtube_info_dict['description']
+            youtube_info_dict['subtitles'] = youtube_info_dict['subtitles'].replace('\n', '<br/>')
+            m.full_html = youtube_info_dict['description'] +  youtube_info_dict['subtitles']
+
+            m.tags.append(Tag(url_domain))
+            m.tags.append(Tag('video'))
+
+            # some videos don't have channel
+            if youtube_info_dict['uploader']: 
+                m.tags.append(Tag(youtube_info_dict['uploader']))
+
+            for auto_tag in youtube_info_dict['tags']:
+                m.tags.append(Tag(auto_tag))
+
+            db.session.add(m)
+            db.session.commit()
+            return redirect(url_for('marks.allmarks'))
+
+        print
+
+        article = Article(url)
+
+        try:
+            article.download()
+        except ArticleBinaryDataException:
+            print(f"URL {url} is binary data")
+            
+        try:
+            article.parse()
+
+        except:
+            print(f"URL {url} not working")
+        else:
+            if article.is_parsed:
+                full_html = article.html
+                # soup_page = BSoup(full_html, features="lxml")
+
+                if full_html:
+                    readable = Document(full_html)
+                    readable_html = readable.summary()
+                    readable_title = readable.title()
+                    m.full_html = readable_html
+                    m.description = article.summary
+                else:
+                    m.full_html = article.summary
+                    m.description = article.summary
+ 
+                article.nlp()
+            else:
+                m.full_html = url
+
+            if readable_title:
+                m.title = readable_title
+            else:
+                m.title = url
+            
+            
+            # Add tags and keywords here
+            m.tags.append(Tag(url_domain))
+
+            for auto_tag in article.keywords[:5]:
+                m.tags.append(Tag(auto_tag))
+                
     db.session.add(m)
     db.session.commit()
-    
-    flash('New %s: "%s", added.'
-            % (type, m.title), category='success')
+    print('New %s: "%s", added.' % (type, m.title))
+
     
     return redirect(url_for('marks.allmarks'))
+
 
 @marks.route('/marks/import', methods=['GET', 'POST'])
 @login_required
@@ -405,33 +514,76 @@ def import_marks():
     POST
     """
     if form.validate_on_submit():
-        try:
-            data = json.loads(form.file.data.read())
-        except Exception as detail:
-            flash('%s' % (detail), category='danger')
-            return redirect(url_for('profile.view'))
-        count = 0
+        f = form.file.data
+        filename = secure_filename(f.filename)
+        f.save(os.path.join(
+            app.root_path, 'files', filename
+        ))
         
-        #firefox export
-        if 'children' in data:
-            iterdict(data)
-        
-        #bookmarko export
-        if 'marks' in data:
-            for c in data['marks']:
-                m = Mark(u.id)
-                m.insert_from_import(c)
-                count += 1
-                db.session.add(m)
-                db.session.commit()
+        if f.content_type == 'application/json':
+            # os.path.join( app.root_path, 'files', filename)
+            try:
+                # data = json.loads(form.file.data.read())
+                # with os.path.join( app.root_path, 'files', filename) as fp:
+                fp = open(os.path.join( app.root_path, 'files', filename) ) 
+                data = json.load(fp)
+                # fp.close()
+            except Exception as detail:
+                flash('%s' % (detail), category='danger')
+                return redirect('/marks/import')
+            count = 0
+            
+            #import firefox export
+            if 'children' in data:
+                # iterdict(data)
+                links = iterdict2(data)
+                for link in links:
+                    try:
+                        app.logger.debug(link)
+                        new_imported_mark(link)
+                    except Exception as e:
+                        app.logger.error(e)
+                    else:
+                        app.logger.debug(f"{link} added")
+            
+            #import bookmarko export
+            elif 'marks' in data:
+                for c in data['marks']:
+                    m = Mark(u.id)
+                    m.insert_from_import(c)
+                    count += 1
+                    db.session.add(m)
+                    db.session.commit()
+            
+            # fp.close()
+
+        # import from plain text file, each line is url
+        elif f.content_type == 'text/plain':
+            count = 0
+            text_file_path = os.path.join(
+                app.root_path, 'files', filename
+            )
+            with open(text_file_path) as fp:
+                while True:
+                    count += 1
+                    line = fp.readline()
+                    if not line:
+                        break
+                    print("Line{}: {}".format(count, line.strip()))
+                    try:
+                        new_imported_mark(line.strip())
+                    except Exception as e:
+                        print('exception', e)
+                        app.logger.error(f"Exception {line.strip()}, {e}")
+                
                 
         flash('%s marks imported' % (count), category='success')
-        return redirect(url_for('profile.userprofile'))
+        return redirect('all')
     """
     GET
     """
-    return render_template('profile/import.html',
-                           form=form)
+    # fp.close()
+    return render_template('profile/import.html', form=form)
 
 
 #########
