@@ -168,6 +168,7 @@ def new_mark(type):
         form.populate_obj(m)
         m.type = type
 
+        # if no title we will get title and text
         if not form.title.data:
             
             #newspaper3k
@@ -396,11 +397,17 @@ def flatten(items):
 # Import mark from uri #
 ###################
 def new_imported_mark(url):
+
+    if g.user.q_marks_by_url(url):
+        app.logger.debug('Mark with this url "%s" already exists.' % (url))
+        return redirect(url_for('marks.allmarks'))
+
     print(f"new_imported_mark: {url}")
     # test if it looks like url
     if not uri_validator(url):
         print("not valid uri")
         return redirect(url_for('marks.allmarks'))
+
 
     url_domain = tldextract.extract(url).domain
     readable_title = None
@@ -461,9 +468,9 @@ def new_imported_mark(url):
             
         try:
             article.parse()
-
+            article.nlp()
         except:
-            print(f"URL {url} not working")
+            print(f"Article {url} not working: article not able to be parsed")
         else:
             if article.is_parsed:
                 full_html = article.html
@@ -478,8 +485,6 @@ def new_imported_mark(url):
                 else:
                     m.full_html = article.summary
                     m.description = article.summary
- 
-                article.nlp()
             else:
                 m.full_html = url
 
