@@ -1,4 +1,5 @@
 # flaskmarks/views/profile.py
+import threading
 from flask.globals import _request_ctx_stack
 from flask import (
     Blueprint,
@@ -10,7 +11,8 @@ from flask import (
     request,
     abort,
     jsonify,
-    json
+    json,
+    current_app
 )
 from flask_login import login_user, logout_user, login_required
 from werkzeug.utils import secure_filename
@@ -45,6 +47,11 @@ from ..models.tag import Tag
 import logging
 from urllib.parse import urlparse
 
+from threading import Thread
+from time import sleep
+import concurrent.futures
+
+pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
 def uri_validator(url_to_test):
     """
@@ -457,8 +464,6 @@ def new_imported_mark(url):
             db.session.commit()
             return redirect(url_for('marks.allmarks'))
 
-        print
-
         article = Article(url)
 
         try:
@@ -507,6 +512,288 @@ def new_imported_mark(url):
     
     return redirect(url_for('marks.allmarks'))
 
+
+# def prepare_new_import_thread(url):
+#     if g.user.q_marks_by_url(url):
+#         app.logger.debug('Mark with this url "%s" already exists.' % (url))
+#         return redirect(url_for('marks.allmarks'))
+    
+#     if not uri_validator(url):
+#         print("not valid uri")
+#         return redirect(url_for('marks.allmarks'))
+    
+#     u = g.user
+#     m = Mark(u.id)
+
+
+#     db.session.add(m)
+#     db.session.commit()
+
+
+# custom thread
+class ImportMarksThread(Thread):
+    # constructor
+    def __init__(self, url):
+        # execute the base constructor
+        Thread.__init__(self)
+        # set a default value
+        self.url = url
+        self.m = None
+ 
+    # function executed in a new thread
+    def run(self):
+        # block for a moment
+        sleep(1)
+        # store data in an instance variable
+        self.value = 'Hello from a new thread'
+
+
+        url = self.url
+
+        print(f"Total Active threads are {threading.activeCount()}")
+
+        print(f"new_imported_mark_thread: {url}")
+        
+        url_domain = tldextract.extract(url).domain
+        readable_title = None
+
+        m = {}
+        m['type'] = 'bookmark'
+        m['tags'] = []
+
+        m['url'] = url
+        m['title'] = url
+        
+        soup_page = False
+
+        if url_domain in ['youtube', 'youtu'] and check_url_video(url):
+            print(url_domain)
+            youtube_info_dict = get_youtube_info(url)
+            m['title'] = youtube_info_dict['title']
+            m['description'] = youtube_info_dict['description']
+            youtube_info_dict['subtitles'] = youtube_info_dict['subtitles'].replace('\n', '<br/>')
+            m['full_html'] = youtube_info_dict['description'] +  youtube_info_dict['subtitles']
+            
+            m['tags'].append(url_domain)
+            m['tags'].append('video')
+
+            # some videos don't have channel
+            if youtube_info_dict['uploader']:
+                m['tags'].append(youtube_info_dict['uploader'])
+
+            for auto_tag in youtube_info_dict['tags']:
+                m['tags'].append(auto_tag)
+
+            self.m = m
+            return 
+
+        article = Article(url)
+
+        try:
+            article.download()
+        except ArticleBinaryDataException:
+            print(f"URL {url} is binary data")
+            
+        try:
+            article.parse()
+            article.nlp()
+        except:
+            print(f"Article {url} not working: article not able to be parsed")
+        else:
+            if article.is_parsed:
+                full_html = article.html
+                # soup_page = BSoup(full_html, features="lxml")
+
+                if full_html:
+                    readable = Document(full_html)
+                    readable_html = readable.summary()
+                    readable_title = readable.title()
+                    m['full_html']  = readable_html
+                    m['description'] = article.summary
+                else:
+                    m['full_html']  = article.summary
+                    m['description'] = article.summary
+            else:
+                m['full_html']  = url
+
+            if readable_title:
+                m['title'] = readable_title
+            else:
+                m['title']  = url
+            
+            # Add tags and keywords here
+            m['tags'].append(url_domain)
+
+            for auto_tag in article.keywords[:5]:
+                m['tags'].append(auto_tag)
+                    
+        print('New %s: "%s", added.' % (type,  m['title'] ))
+        
+        self.m = m
+        return        
+
+
+def new_imported_mark_thread(url):
+    print(f"Total Active threads are {threading.activeCount()}")
+
+    print(f"new_imported_mark_thread: {url}")
+    
+    url_domain = tldextract.extract(url).domain
+    readable_title = None
+
+    m = {}
+    m['type'] = 'bookmark'
+    m['tags'] = []
+
+    m['url'] = url
+    m['title'] = url
+    
+    soup_page = False
+
+    if url_domain in ['youtube', 'youtu'] and check_url_video(url):
+        print(url_domain)
+        youtube_info_dict = get_youtube_info(url)
+        m['title'] = youtube_info_dict['title']
+        m['description'] = youtube_info_dict['description']
+        youtube_info_dict['subtitles'] = youtube_info_dict['subtitles'].replace('\n', '<br/>')
+        m['full_html'] = youtube_info_dict['description'] +  youtube_info_dict['subtitles']
+        
+        m['tags'].append(Tag( url_domain))
+        m['tags'].append(Tag('video'))
+
+        # some videos don't have channel
+        if youtube_info_dict['uploader']:
+            m['tags'].append(Tag(youtube_info_dict['uploader']))
+            pass
+
+        for auto_tag in youtube_info_dict['tags']:
+            m['tags'].append(Tag(auto_tag))
+
+        return m
+
+    article = Article(url)
+
+    try:
+        article.download()
+    except ArticleBinaryDataException:
+        print(f"URL {url} is binary data")
+        
+    try:
+        article.parse()
+        article.nlp()
+    except:
+        print(f"Article {url} not working: article not able to be parsed")
+    else:
+        if article.is_parsed:
+            full_html = article.html
+            # soup_page = BSoup(full_html, features="lxml")
+
+            if full_html:
+                readable = Document(full_html)
+                readable_html = readable.summary()
+                readable_title = readable.title()
+                m['full_html']  = readable_html
+                m['description'] = article.summary
+            else:
+                m['full_html']  = article.summary
+                m['description'] = article.summary
+        else:
+            m['full_html']  = url
+
+        if readable_title:
+            m['title'] = readable_title
+        else:
+            m['title']  = url
+        
+        # Add tags and keywords here
+        m['tags'].append(Tag(url_domain))
+
+        for auto_tag in article.keywords[:5]:
+            m['tags'].append(Tag(auto_tag))
+                
+    print('New %s: "%s", added.' % (type,  m['title'] ))
+    
+    return m
+
+
+def thread_import_file(text_file_path, app, user_id):
+
+    global status
+    status = 0 
+
+    with open(text_file_path) as fp:
+        while True:
+            status += 1
+            line = fp.readline()
+            if not line:
+                break
+            print("Line{}: {}".format(status, line.strip()))
+            url = line.strip()
+            maxthreads = 4
+            print("MAIN  Total Active threads are {0}".format(threading.activeCount()))
+            if threading.activeCount() <= maxthreads:
+                thread = ImportMarksThread(url)
+                thread.start()
+                thread.join()
+                data = thread.m
+
+                with app.app_context():
+                    m = Mark(user_id)
+                    m.url = data['url']
+                    m.title = data['title']
+                    m.description = data['title']
+                    m.full_html = data['title']
+                    m.type = data['title']
+
+                    for auto_tag in data['tags']:
+                        m.tags.append(Tag(auto_tag))
+
+                    db.session.add(m)
+                    db.session.commit()
+    
+
+@app.route('/marks/import/thread', methods=['GET', 'POST'])
+@login_required
+def import_marks_thread():
+    global status
+
+    app.logger.error('Processing default request')
+    u = g.user
+    form = MarksImportForm(obj=u)
+
+    if form.validate_on_submit():
+        f = form.file.data
+        filename = secure_filename(f.filename)
+        f.save(os.path.join(
+            app.root_path, 'files', filename
+        ))
+        
+        if f.content_type == 'text/plain':
+            count = 0
+            text_file_path = os.path.join(
+                app.root_path, 'files', filename
+            )
+
+            t1 = Thread(target=thread_import_file, args=(text_file_path, current_app._get_current_object(), u.id))
+            t1.start()
+
+        flash('%s marks imported' % (count), category='success')
+        return render_template('profile/import_progress.html', status=1)
+    
+    
+    status = 0
+    return render_template('profile/import_progress.html', form=form, status=0)
+
+    return render_template('profile/import_progress.html')
+  
+
+@app.route('/marks/import/status', methods=['GET', 'POST'])
+@login_required
+def getStatus():
+  statusList = {'status':status}
+  return json.dumps(statusList)
+
+# Threaded import - end
 
 @marks.route('/marks/import', methods=['GET', 'POST'])
 @login_required
