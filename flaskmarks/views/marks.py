@@ -719,7 +719,9 @@ def new_imported_mark_thread(url):
 def thread_import_file(text_file_path, app, user_id):
 
     global status
-    status = 0 
+    global total_lines
+    # total_lines = 0 
+    status = 0
 
     with open(text_file_path) as fp:
         while True:
@@ -729,6 +731,21 @@ def thread_import_file(text_file_path, app, user_id):
                 break
             print("Line{}: {}".format(status, line.strip()))
             url = line.strip()
+            with app.app_context():
+                # user = User(user_id)
+                # if g.user.q_marks_by_url(url):
+                existing_mark = Mark.query.filter(Mark.url == url).all()
+                if len(existing_mark) > 0:
+                    app.logger.debug('Mark with this url "%s" already exists.' % (url))
+                    print("exists!")
+                    continue
+
+                print(f"new_imported_mark: {url}")
+                # test if it looks like url
+                if not uri_validator(url):
+                    print("not valid uri")
+                    continue 
+
             maxthreads = 4
             print("MAIN  Total Active threads are {0}".format(threading.activeCount()))
             if threading.activeCount() <= maxthreads:
@@ -756,6 +773,8 @@ def thread_import_file(text_file_path, app, user_id):
 @login_required
 def import_marks_thread():
     global status
+    global total_lines
+    total_lines = 0
 
     app.logger.error('Processing default request')
     u = g.user
@@ -774,11 +793,17 @@ def import_marks_thread():
                 app.root_path, 'files', filename
             )
 
+            with open(text_file_path) as fp:
+                for total_lines, line in enumerate(fp):
+                    pass
+
+            print('Total Lines', total_lines + 1)
+
             t1 = Thread(target=thread_import_file, args=(text_file_path, current_app._get_current_object(), u.id))
             t1.start()
 
         flash('%s marks imported' % (count), category='success')
-        return render_template('profile/import_progress.html', status=1)
+        return render_template('profile/import_progress.html', total_lines=total_lines, status=1 )
     
     
     status = 0
@@ -790,7 +815,7 @@ def import_marks_thread():
 @app.route('/marks/import/status', methods=['GET', 'POST'])
 @login_required
 def getStatus():
-  statusList = {'status':status}
+  statusList = {'status':status, 'total_lines': total_lines}
   return json.dumps(statusList)
 
 # Threaded import - end

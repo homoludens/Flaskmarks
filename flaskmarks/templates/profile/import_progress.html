@@ -29,8 +29,8 @@
                     
                     progresElement = document.getElementById("progressbar");
                     progresElement.ariaValueNow = get.status ;
-                    progresElement.style.width = get.status + "%";
-                    progresElement.textContent = get.status + " of 100"
+                    progresElement.style.width = (get.status/get.total_lines) * 100 + "%";
+                    progresElement.textContent = get.status + " of " + get.total_lines ;
                     console.log(get.status)
                     //   if (get.status == 10){
                     //     document.getElementById("innerStatus").innerHTML += " Done.";
