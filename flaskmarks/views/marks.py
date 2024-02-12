@@ -75,6 +75,21 @@ def webroot():
     return redirect(url_for('marks.allmarks'))
 
 
+
+from flask_msearch import Search
+search = Search(db=db)
+search.init_app(app)
+
+@marks.route('/upatewhoosh')
+def update_whoosh():
+    with app.app_context():
+        # search.update_index()
+        search.create_index()
+    
+    flash('Whoosh updated', category='danger')
+    return redirect(url_for('marks.allmarks'))
+
+
 @marks.route('/marks/all')
 @marks.route('/marks/all/<int:page>')
 @login_required
@@ -542,16 +557,10 @@ class ImportMarksThread(Thread):
  
     # function executed in a new thread
     def run(self):
-        # block for a moment
-        sleep(1)
-        # store data in an instance variable
-        self.value = 'Hello from a new thread'
-
 
         url = self.url
 
         print(f"Total Active threads are {threading.activeCount()}")
-
         print(f"new_imported_mark_thread: {url}")
         
         url_domain = tldextract.extract(url).domain
@@ -563,15 +572,15 @@ class ImportMarksThread(Thread):
 
         m['url'] = url
         m['title'] = url
+        m['description'] = ''
+        m['full_html'] = ''
         
-        soup_page = False
-
         if url_domain in ['youtube', 'youtu'] and check_url_video(url):
             print(url_domain)
             youtube_info_dict = get_youtube_info(url)
             m['title'] = youtube_info_dict['title']
             m['description'] = youtube_info_dict['description']
-            youtube_info_dict['subtitles'] = youtube_info_dict['subtitles'].replace('\n', '<br/>')
+            youtube_info_dict['subtitles'] = youtube_info_dict['subtitles']
             m['full_html'] = youtube_info_dict['description'] +  youtube_info_dict['subtitles']
             
             m['tags'].append(url_domain)
@@ -647,15 +656,17 @@ def new_imported_mark_thread(url):
 
     m['url'] = url
     m['title'] = url
-    
-    soup_page = False
 
+
+    m['description'] = ''
+    m['full_html'] = ''
+    
     if url_domain in ['youtube', 'youtu'] and check_url_video(url):
         print(url_domain)
         youtube_info_dict = get_youtube_info(url)
         m['title'] = youtube_info_dict['title']
         m['description'] = youtube_info_dict['description']
-        youtube_info_dict['subtitles'] = youtube_info_dict['subtitles'].replace('\n', '<br/>')
+        youtube_info_dict['subtitles'] = youtube_info_dict['subtitles']
         m['full_html'] = youtube_info_dict['description'] +  youtube_info_dict['subtitles']
         
         m['tags'].append(Tag( url_domain))
@@ -734,7 +745,7 @@ def thread_import_file(text_file_path, app, user_id):
             with app.app_context():
                 # user = User(user_id)
                 # if g.user.q_marks_by_url(url):
-                existing_mark = Mark.query.filter(Mark.url == url).all()
+                existing_mark = Mark.query.filter(Mark.url == url, Mark.owner_id == user_id).all()
                 if len(existing_mark) > 0:
                     app.logger.debug('Mark with this url "%s" already exists.' % (url))
                     print("exists!")
@@ -758,9 +769,9 @@ def thread_import_file(text_file_path, app, user_id):
                     m = Mark(user_id)
                     m.url = data['url']
                     m.title = data['title']
-                    m.description = data['title']
-                    m.full_html = data['title']
-                    m.type = data['title']
+                    m.description = data['description']
+                    m.full_html = data['full_html']
+                    m.type = data['type']
 
                     for auto_tag in data['tags']:
                         m.tags.append(Tag(auto_tag))
