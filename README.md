@@ -26,11 +26,11 @@ Install
 =======
 * Create and activate a python virtualenv.
 * make a copy of config.py.example to config.py and edit accordingly.
-* run: `pip install -r requirements.txt`.
-* run: `python run.py db init`
-* run: `python run.py db migrate`
-* run: `python run.py db upgrade`
-* run: `python run.py runserver`
+* run: `pip install -r requirements.txt`
+* run: `flask --app flaskmarks db init`
+* run: `flask --app flaskmarks db migrate -m "MIGRATION DESCRIPTION"`
+* run: `flask --app flaskmarks db upgrade`
+* run: `flask --app flaskmarks db`
 
 
 >>> python3

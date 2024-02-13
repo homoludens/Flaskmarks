@@ -6,8 +6,9 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_bcrypt import Bcrypt
 from flask_bootstrap import Bootstrap
-from flask_debugtoolbar import DebugToolbarExtension
+# from flask_debugtoolbar import DebugToolbarExtension
 from .. import app
+from flask_migrate import Migrate
 
 app.config.from_object('config')
 config = app.config
@@ -20,7 +21,7 @@ app.debug = config['DEBUG_MODE']
 """
 Toolbar
 """
-toolbar = DebugToolbarExtension(app)
+# toolbar = DebugToolbarExtension(app)
 
 """
 Login manager
@@ -36,7 +37,7 @@ db = SQLAlchemy(app)
 """
 DB migration
 """
-# migrate = Migrate(app, db)
+migrate = Migrate(app, db)
 
 """
 Manager

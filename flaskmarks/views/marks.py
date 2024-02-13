@@ -50,6 +50,17 @@ from urllib.parse import urlparse
 from threading import Thread
 from time import sleep
 import concurrent.futures
+# from flask_whooshee import Whooshee
+from sqlalchemy.sql import text
+
+from sqlalchemy_fulltext import FullText, FullTextSearch
+import sqlalchemy_fulltext.modes as FullTextMode
+# Suppress warning
+# https://github.com/mengzhuo/sqlalchemy-fulltext-search/issues/21
+FullTextSearch.inherit_cache = False
+
+status = 0
+total_lines = 0
 
 pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
@@ -76,18 +87,18 @@ def webroot():
 
 
 
-from flask_msearch import Search
-search = Search(db=db)
-search.init_app(app)
+# from flask_msearch import Search
+# search = Search(db=db)
+# search.init_app(app)
 
-@marks.route('/upatewhoosh')
-def update_whoosh():
-    with app.app_context():
-        # search.update_index()
-        search.create_index()
+# @marks.route('/upatewhoosh')
+# def update_whoosh():
+#     with app.app_context():
+#         whooshee = Whooshee(app)
+#         whooshee.reindex()
     
-    flash('Whoosh updated', category='danger')
-    return redirect(url_for('marks.allmarks'))
+#     flash('Whoosh updated', category='info')
+#     return redirect(url_for('marks.allmarks'))
 
 
 @marks.route('/marks/all')
@@ -144,13 +155,25 @@ def search_string(page=1):
         return redirect(url_for('marks.allmarks'))
 
     #m = g.user.q_marks_by_string(page, q, t)
+    # print("search_string g.user.id: ", g.user.id)
 
-    results = Mark.query.whoosh_search(q).filter(Mark.owner_id == g.user.id).paginate(page=page, per_page=50, error_out=False)
+    # results = Mark.query.from_statement(
+    #         text("""
+    #                 SELECT * FROM marks
+    #                 WHERE MATCH (`title`, `description`, `full_html`, `url`)
+    #                 AGAINST (:val IN NATURAL LANGUAGE MODE) LIMIT 100;
+    #             """)
+    # ).params(val="linux").all()
 
 
-    #print results
-
-    #print m
+    results = Mark.query.session.query(Mark)\
+                        .filter(FullTextSearch(q, Mark, FullTextMode.NATURAL))\
+                        .filter(Mark.owner_id == g.user.id)\
+                        .paginate(page=page, per_page=5, error_out=False)
+    
+    # results = Mark.query.whooshee_search(q).paginate(page=page, per_page=50, error_out=False)
+    # results = Mark.query.whooshee_search(q).filter(Mark.owner_id == g.user.id).paginate(page=page, per_page=50, error_out=False)
+    # results = Mark.query.whoosh_search(q).filter(Mark.owner_id == g.user.id).paginate(page=page, per_page=50, error_out=False)
 
     return render_template('mark/index.html',
                            title='Search results for: %s' % (q),
@@ -775,9 +798,11 @@ def thread_import_file(text_file_path, app, user_id):
 
                     for auto_tag in data['tags']:
                         m.tags.append(Tag(auto_tag))
-
-                    db.session.add(m)
-                    db.session.commit()
+                    try:
+                        db.session.add(m)
+                        db.session.commit()
+                    except Exception as e:
+                        print(e)
     
 
 @app.route('/marks/import/thread', methods=['GET', 'POST'])
@@ -785,7 +810,7 @@ def thread_import_file(text_file_path, app, user_id):
 def import_marks_thread():
     global status
     global total_lines
-    total_lines = 0
+    # total_lines = 0
 
     app.logger.error('Processing default request')
     u = g.user
@@ -818,6 +843,7 @@ def import_marks_thread():
     
     
     status = 0
+    # total_lines = 0
     return render_template('profile/import_progress.html', form=form, status=0)
 
     return render_template('profile/import_progress.html')
@@ -826,6 +852,8 @@ def import_marks_thread():
 @app.route('/marks/import/status', methods=['GET', 'POST'])
 @login_required
 def getStatus():
+  global status
+  global total_lines
   statusList = {'status':status, 'total_lines': total_lines}
   return json.dumps(statusList)
 
