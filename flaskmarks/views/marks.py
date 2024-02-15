@@ -544,13 +544,63 @@ def new_imported_mark(url):
     return redirect(url_for('marks.allmarks'))
 
 
+
+
+from itertools import islice
+
+def thread_import_file_n(text_file_path, app, user_id):
+    maxthreads = 10
+    global status
+    global total_lines
+    # total_lines = 0 
+    status = 0
+    i = 0
+
+    with open(text_file_path) as fp:
+        while True:
+            lines_gen = islice(fp, maxthreads)
+            # print(list(lines_gen))
+            lines_new = []
+            for line in lines_gen:
+                status += 1
+                # line = fp.readline()
+                if not lines_gen:
+                    break
+                print("Line{}: {}".format(status, line.strip()))
+                url = line.strip()
+                lines_new.append(url)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=maxthreads) as exe:
+                zip( lines_new, [user_id] * len(lines_new) )
+                result = exe.map(marks_import_threads, zip( lines_new, [user_id] * len(lines_new)))
+
+
+def marks_import_threads(url_user_id):
+    url, user_id = url_user_id
+    with app.app_context():
+        # test if it looks like url
+        if not uri_validator(url):
+            print("not valid uri")
+            return None
+        else:
+            existing_mark = Mark.query.filter(Mark.url == url, Mark.owner_id == user_id).all()
+        
+        if len(existing_mark) > 0:
+            app.logger.debug('Mark with this url "%s" already exists.' % (url))
+            print("exists!")
+            return None
+        else:
+            r = MarksImportThread(url, user_id)
+            r.run()
+
+
 def thread_import_file(text_file_path, app, user_id):
 
     global status
     global total_lines
     # total_lines = 0 
     status = 0
-
+    i = 0
     with open(text_file_path) as fp:
         while True:
             status += 1
@@ -571,15 +621,12 @@ def thread_import_file(text_file_path, app, user_id):
                     print("exists!")
                     continue
 
-                print(f"new_imported_mark: {url}")
-
             maxthreads = 10
-            print("MAIN  Total Active threads are {0}".format(threading.activeCount()))
-            if threading.activeCount() <= maxthreads:
-                thread = MarksImportThread(url, user_id)
-                thread.start()
-                thread.join()
-
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as exe:
+                i = i + 1
+                print(i)
+                rrr = MarksImportThread(url, user_id)
+                exe.submit(rrr.run())
 
 
 @marks.route('/marks/import', methods=['GET', 'POST'])
@@ -612,7 +659,7 @@ def import_marks():
 
             print('Total Lines', total_lines + 1)
 
-            t1 = Thread(target=thread_import_file, args=(text_file_path, current_app._get_current_object(), u.id))
+            t1 = Thread(target=thread_import_file_n, args=(text_file_path, current_app._get_current_object(), u.id))
             t1.start()
 
         flash('%s marks imported' % (count), category='success')

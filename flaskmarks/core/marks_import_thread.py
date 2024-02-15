@@ -36,7 +36,7 @@ from ..models import Mark
 from ..models.tag import Tag
 
 
-class MarksImportThread(Thread):
+class MarksImportThread():
     # constructor
     def __init__(self, url, user_id):
         # execute the base constructor
@@ -45,13 +45,18 @@ class MarksImportThread(Thread):
         self.url = url
         self.user_id = user_id
         self.m = None
- 
+
+
     # function executed in a new thread
     def run(self):
+        self.get_url_data()
+        return
 
+
+    def get_url_data(self):
         url = self.url
 
-        print(f"Total Active threads are {threading.activeCount()}")
+        # print(f"Total Active threads are {threading.activeCount()}")
         print(f"new_imported_mark_thread: {url}")
         
         url_domain = tldextract.extract(url).domain
@@ -86,16 +91,21 @@ class MarksImportThread(Thread):
 
             self.m = m
             return
+        
+        try:
+            with requests.head(url, timeout=4) as r:
+                content_type= r.headers.get('content-type', 'none')
 
-        with requests.head(url, timeout=4) as r:
-            content_type= r.headers.get('content-type', 'none')
-
-            if 'text' not in content_type:
-                m['tags'].append('binary_file')
-                print('url not text')
-                self.m = m
-                return
-
+                if 'text' not in content_type:
+                    m['tags'].append('binary_file')
+                    print('url not text')
+                    self.m = m
+                    return
+        except Exception as e:
+            print('requests connection error')
+            print(e)
+            return 
+        
         article = Article(url)
 
         try:
@@ -141,7 +151,7 @@ class MarksImportThread(Thread):
         self.m = m
         self.insert_mark_thread()
         
-        return
+        return   
 
     def insert_mark_thread(self):
         data = self.m
