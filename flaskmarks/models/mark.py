@@ -16,28 +16,14 @@ from sqlalchemy.schema import DDL
 from sqlalchemy_fulltext import FullText, FullTextSearch
 import sqlalchemy_fulltext.modes as FullTextMode
 
-# flask_whooshalchemy
-#import flask_msearch
-# from flask_msearch import Search
-# search = Search(db=db)
-# search.init_app(app)
-
-from flask_whooshee import Whooshee
-whooshee = Whooshee(app)
-# Mark.query.whooshee_search('ferrari').all()
-
-# search.update_index()
-
 
 ass_tbl = db.Table('marks_tags', db.metadata,
                    db.Column('left_id', db.Integer, db.ForeignKey('marks.id')),
                    db.Column('right_id', db.Integer, db.ForeignKey('tags.id'))
                    )
 
-# @whooshee.register_model('title', 'description', 'full_html')
 class Mark(FullText, db.Model):
     __tablename__ = 'marks'
-    # __searchable__ = ['title', 'description', 'full_html']
     __fulltext_columns__ = ('title', 'description', 'full_html', 'url')
 
     id = db.Column(db.Integer, primary_key=True)

@@ -14,7 +14,7 @@ class User(db.Model):
     email = db.Column(db.Unicode(255), unique=True, nullable=False)
     password = db.Column(db.Unicode(255), nullable=False)
     last_logged = db.Column(db.DateTime)
-    per_page = db.Column(db.SmallInteger, default=10)
+    per_page = db.Column(db.SmallInteger, default=50)
     sort_type = db.Column(db.Unicode(255), default=u'clicks')
 
     marks = db.relationship('Mark', backref='owner', lazy='dynamic')

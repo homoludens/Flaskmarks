@@ -28,6 +28,7 @@ from newspaper import Article, ArticleBinaryDataException
 #from gensim.summarization import keywords
 from werkzeug.utils import secure_filename
 import tldextract
+import requests
 
 from ..core.setup import app, db
 from ..core.youtube import get_youtube_info, check_url_video
@@ -83,22 +84,7 @@ marks = Blueprint('marks', __name__)
 @marks.route('/')
 @marks.route('/index')
 def webroot():
-    return redirect(url_for('marks.allmarks'))
-
-
-
-# from flask_msearch import Search
-# search = Search(db=db)
-# search.init_app(app)
-
-# @marks.route('/upatewhoosh')
-# def update_whoosh():
-#     with app.app_context():
-#         whooshee = Whooshee(app)
-#         whooshee.reindex()
-    
-#     flash('Whoosh updated', category='info')
-#     return redirect(url_for('marks.allmarks'))
+    return redirect(url_for('marks.recently_added'))
 
 
 @marks.route('/marks/all')
@@ -501,6 +487,11 @@ def new_imported_mark(url):
             db.session.add(m)
             db.session.commit()
             return redirect(url_for('marks.allmarks'))
+    
+        
+        if ('text' not in requests.head(url).headers.get('content-type', 'none')):
+            print('url not text 1')
+            return
 
         article = Article(url)
 
@@ -551,31 +542,14 @@ def new_imported_mark(url):
     return redirect(url_for('marks.allmarks'))
 
 
-# def prepare_new_import_thread(url):
-#     if g.user.q_marks_by_url(url):
-#         app.logger.debug('Mark with this url "%s" already exists.' % (url))
-#         return redirect(url_for('marks.allmarks'))
-    
-#     if not uri_validator(url):
-#         print("not valid uri")
-#         return redirect(url_for('marks.allmarks'))
-    
-#     u = g.user
-#     m = Mark(u.id)
-
-
-#     db.session.add(m)
-#     db.session.commit()
-
-
-# custom thread
 class ImportMarksThread(Thread):
     # constructor
-    def __init__(self, url):
+    def __init__(self, url, user_id):
         # execute the base constructor
         Thread.__init__(self)
         # set a default value
         self.url = url
+        self.user_id = user_id
         self.m = None
  
     # function executed in a new thread
@@ -617,7 +591,27 @@ class ImportMarksThread(Thread):
                 m['tags'].append(auto_tag)
 
             self.m = m
-            return 
+            return
+
+        # check if url is text/html or pdf/binary
+        # try:
+        #     content_type = requests.head(url, timeout=4).headers.get('content-type', 'none')             
+        # except Exception as e:
+        #     m['tags'].append('error')
+        #     print('connection error')
+        #     print(e)
+        #     self.m = m
+        #     return
+        
+
+        with requests.head(url, timeout=4) as r:
+            content_type= r.headers.get('content-type', 'none')
+
+            if 'text' not in content_type:
+                m['tags'].append('binary_file')
+                print('url not text')
+                self.m = m
+                return
 
         article = Article(url)
 
@@ -662,92 +656,29 @@ class ImportMarksThread(Thread):
         print('New %s: "%s", added.' % (type,  m['title'] ))
         
         self.m = m
-        return        
 
-
-def new_imported_mark_thread(url):
-    print(f"Total Active threads are {threading.activeCount()}")
-
-    print(f"new_imported_mark_thread: {url}")
-    
-    url_domain = tldextract.extract(url).domain
-    readable_title = None
-
-    m = {}
-    m['type'] = 'bookmark'
-    m['tags'] = []
-
-    m['url'] = url
-    m['title'] = url
-
-
-    m['description'] = ''
-    m['full_html'] = ''
-    
-    if url_domain in ['youtube', 'youtu'] and check_url_video(url):
-        print(url_domain)
-        youtube_info_dict = get_youtube_info(url)
-        m['title'] = youtube_info_dict['title']
-        m['description'] = youtube_info_dict['description']
-        youtube_info_dict['subtitles'] = youtube_info_dict['subtitles']
-        m['full_html'] = youtube_info_dict['description'] +  youtube_info_dict['subtitles']
+        self.insert_mark_thread()
         
-        m['tags'].append(Tag( url_domain))
-        m['tags'].append(Tag('video'))
+        return
 
-        # some videos don't have channel
-        if youtube_info_dict['uploader']:
-            m['tags'].append(Tag(youtube_info_dict['uploader']))
-            pass
+    def insert_mark_thread(self):
+        data = self.m
 
-        for auto_tag in youtube_info_dict['tags']:
-            m['tags'].append(Tag(auto_tag))
+        with app.app_context():
+            m = Mark(self.user_id)
+            m.url = data['url']
+            m.title = data['title']
+            m.description = data['description']
+            m.full_html = data['full_html']
+            m.type = data['type']
 
-        return m
-
-    article = Article(url)
-
-    try:
-        article.download()
-    except ArticleBinaryDataException:
-        print(f"URL {url} is binary data")
-        
-    try:
-        article.parse()
-        article.nlp()
-    except:
-        print(f"Article {url} not working: article not able to be parsed")
-    else:
-        if article.is_parsed:
-            full_html = article.html
-            # soup_page = BSoup(full_html, features="lxml")
-
-            if full_html:
-                readable = Document(full_html)
-                readable_html = readable.summary()
-                readable_title = readable.title()
-                m['full_html']  = readable_html
-                m['description'] = article.summary
-            else:
-                m['full_html']  = article.summary
-                m['description'] = article.summary
-        else:
-            m['full_html']  = url
-
-        if readable_title:
-            m['title'] = readable_title
-        else:
-            m['title']  = url
-        
-        # Add tags and keywords here
-        m['tags'].append(Tag(url_domain))
-
-        for auto_tag in article.keywords[:5]:
-            m['tags'].append(Tag(auto_tag))
-                
-    print('New %s: "%s", added.' % (type,  m['title'] ))
-    
-    return m
+            for auto_tag in data['tags']:
+                m.tags.append(Tag(auto_tag))
+            try:
+                db.session.add(m)
+                db.session.commit()
+            except Exception as e:
+                print(e)     
 
 
 def thread_import_file(text_file_path, app, user_id):
@@ -766,8 +697,11 @@ def thread_import_file(text_file_path, app, user_id):
             print("Line{}: {}".format(status, line.strip()))
             url = line.strip()
             with app.app_context():
-                # user = User(user_id)
-                # if g.user.q_marks_by_url(url):
+                # test if it looks like url
+                if not uri_validator(url):
+                    print("not valid uri")
+                    continue 
+
                 existing_mark = Mark.query.filter(Mark.url == url, Mark.owner_id == user_id).all()
                 if len(existing_mark) > 0:
                     app.logger.debug('Mark with this url "%s" already exists.' % (url))
@@ -775,39 +709,35 @@ def thread_import_file(text_file_path, app, user_id):
                     continue
 
                 print(f"new_imported_mark: {url}")
-                # test if it looks like url
-                if not uri_validator(url):
-                    print("not valid uri")
-                    continue 
 
-            maxthreads = 4
+            maxthreads = 10
             print("MAIN  Total Active threads are {0}".format(threading.activeCount()))
             if threading.activeCount() <= maxthreads:
-                thread = ImportMarksThread(url)
+                thread = ImportMarksThread(url, user_id)
                 thread.start()
                 thread.join()
-                data = thread.m
+                # data = thread.m
 
-                with app.app_context():
-                    m = Mark(user_id)
-                    m.url = data['url']
-                    m.title = data['title']
-                    m.description = data['description']
-                    m.full_html = data['full_html']
-                    m.type = data['type']
+                # with app.app_context():
+                #     m = Mark(user_id)
+                #     m.url = data['url']
+                #     m.title = data['title']
+                #     m.description = data['description']
+                #     m.full_html = data['full_html']
+                #     m.type = data['type']
 
-                    for auto_tag in data['tags']:
-                        m.tags.append(Tag(auto_tag))
-                    try:
-                        db.session.add(m)
-                        db.session.commit()
-                    except Exception as e:
-                        print(e)
-    
+                #     for auto_tag in data['tags']:
+                #         m.tags.append(Tag(auto_tag))
+                #     try:
+                #         db.session.add(m)
+                #         db.session.commit()
+                #     except Exception as e:
+                #         print(e)
 
-@app.route('/marks/import/thread', methods=['GET', 'POST'])
+
+@marks.route('/marks/import', methods=['GET', 'POST'])
 @login_required
-def import_marks_thread():
+def import_marks():
     global status
     global total_lines
     # total_lines = 0
@@ -858,89 +788,6 @@ def getStatus():
   return json.dumps(statusList)
 
 # Threaded import - end
-
-@marks.route('/marks/import', methods=['GET', 'POST'])
-@login_required
-def import_marks():
-    
-    app.logger.error('Processing default request')
-    u = g.user
-    form = MarksImportForm(obj=u)
-    """
-    POST
-    """
-    if form.validate_on_submit():
-        f = form.file.data
-        filename = secure_filename(f.filename)
-        f.save(os.path.join(
-            app.root_path, 'files', filename
-        ))
-        
-        if f.content_type == 'application/json':
-            # os.path.join( app.root_path, 'files', filename)
-            try:
-                # data = json.loads(form.file.data.read())
-                # with os.path.join( app.root_path, 'files', filename) as fp:
-                fp = open(os.path.join( app.root_path, 'files', filename) ) 
-                data = json.load(fp)
-                # fp.close()
-            except Exception as detail:
-                flash('%s' % (detail), category='danger')
-                return redirect('/marks/import')
-            count = 0
-            
-            #import firefox export
-            if 'children' in data:
-                # iterdict(data)
-                links = iterdict2(data)
-                for link in links:
-                    try:
-                        app.logger.debug(link)
-                        new_imported_mark(link)
-                    except Exception as e:
-                        app.logger.error(e)
-                    else:
-                        app.logger.debug(f"{link} added")
-            
-            #import bookmarko export
-            elif 'marks' in data:
-                for c in data['marks']:
-                    m = Mark(u.id)
-                    m.insert_from_import(c)
-                    count += 1
-                    db.session.add(m)
-                    db.session.commit()
-            
-            # fp.close()
-
-        # import from plain text file, each line is url
-        elif f.content_type == 'text/plain':
-            count = 0
-            text_file_path = os.path.join(
-                app.root_path, 'files', filename
-            )
-            with open(text_file_path) as fp:
-                while True:
-                    count += 1
-                    line = fp.readline()
-                    if not line:
-                        break
-                    print("Line{}: {}".format(count, line.strip()))
-                    try:
-                        new_imported_mark(line.strip())
-                    except Exception as e:
-                        print('exception', e)
-                        app.logger.error(f"Exception {line.strip()}, {e}")
-                
-                
-        flash('%s marks imported' % (count), category='success')
-        return redirect('all')
-    """
-    GET
-    """
-    # fp.close()
-    return render_template('profile/import.html', form=form)
-
 
 #########
 # Other #
