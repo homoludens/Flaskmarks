@@ -27,11 +27,8 @@ from typing import Iterable
 from newspaper import Article, ArticleBinaryDataException
 #from gensim.summarization import keywords
 from werkzeug.utils import secure_filename
-import tldextract
-import requests
 
 from ..core.setup import app, db
-from ..core.youtube import get_youtube_info, check_url_video
 from ..core.error import is_safe_url
 from ..core.marks_import_thread import MarksImportThread
 
@@ -51,6 +48,7 @@ import logging
 from urllib.parse import urlparse
 
 from threading import Thread
+from itertools import islice
 from time import sleep
 import concurrent.futures
 # from flask_whooshee import Whooshee
@@ -142,26 +140,10 @@ def search_string(page=1):
     if not q and not t:
         return redirect(url_for('marks.allmarks'))
 
-    #m = g.user.q_marks_by_string(page, q, t)
-    # print("search_string g.user.id: ", g.user.id)
-
-    # results = Mark.query.from_statement(
-    #         text("""
-    #                 SELECT * FROM marks
-    #                 WHERE MATCH (`title`, `description`, `full_html`, `url`)
-    #                 AGAINST (:val IN NATURAL LANGUAGE MODE) LIMIT 100;
-    #             """)
-    # ).params(val="linux").all()
-
-
     results = Mark.query.session.query(Mark)\
                         .filter(FullTextSearch(q, Mark, FullTextMode.NATURAL))\
                         .filter(Mark.owner_id == g.user.id)\
                         .paginate(page=page, per_page=5, error_out=False)
-    
-    # results = Mark.query.whooshee_search(q).paginate(page=page, per_page=50, error_out=False)
-    # results = Mark.query.whooshee_search(q).filter(Mark.owner_id == g.user.id).paginate(page=page, per_page=50, error_out=False)
-    # results = Mark.query.whoosh_search(q).filter(Mark.owner_id == g.user.id).paginate(page=page, per_page=50, error_out=False)
 
     return render_template('mark/index.html',
                            title='Search results for: %s' % (q),
@@ -181,6 +163,7 @@ def new_mark_selector():
 @login_required
 def new_mark(type):
     u = g.user
+
     if type not in ['bookmark', 'feed', 'youtube']:
         abort(404)
 
@@ -203,32 +186,10 @@ def new_mark(type):
 
         # if no title we will get title and text
         if not form.title.data:
+            r = MarksImportThread(form.url.data, u.id)
+            m = r.run()
             
-            #newspaper3k
-            url = form.url.data
-            article = Article(url)
-            article.download()
-            full_html = article.html
-
-            readable = Document(full_html)
-            readable_html = readable.summary()
-            readable_title = readable.title()
-            
-            m.title = readable_title
-            m.full_html = readable_html
-            
-            article.parse()
-            article.nlp()
-            # Add tags and keywords here            
-            for auto_tag in article.keywords[:5]:
-                m.tags.append(Tag(auto_tag))
-                
-            m.description = article.summary
-
-        db.session.add(m)
-        db.session.commit()
-        flash('New %s: "%s", added.'
-              % (type, m.title), category='success')
+        flash('New %s: "%s", added.' % (type, m['title']), category='success')
         return redirect(url_for('marks.allmarks'))
     """
     GET
@@ -379,7 +340,7 @@ def iterdict(d):
             i = i + 1
             try:
                 app.logger.debug(bookmark['uri'])
-                new_imported_mark(bookmark['uri'])
+                # new_imported_mark(bookmark['uri'])
             except Exception as e:
                 app.logger.error(e)
                 # app.logger.error('Exception %s, not added. %s' % (bookmark['uri'], e))
@@ -429,130 +390,12 @@ def flatten(items):
 ###################
 # Import mark from uri #
 ###################
-def new_imported_mark(url):
-
-    if g.user.q_marks_by_url(url):
-        app.logger.debug('Mark with this url "%s" already exists.' % (url))
-        return redirect(url_for('marks.allmarks'))
-
-    print(f"new_imported_mark: {url}")
-    # test if it looks like url
-    if not uri_validator(url):
-        print("not valid uri")
-        return redirect(url_for('marks.allmarks'))
 
 
-    url_domain = tldextract.extract(url).domain
-    readable_title = None
-
-    u = g.user
-    m = Mark(u.id)
-    m.type = 'bookmark'
-    # https://lpi.oregonstate.edu/mic/
-
-    m.url = url
-    m.title = url
-    soup_page = False
-
-    existing_mark = Mark.query.filter(Mark.url == url).all()
-    if len(existing_mark) > 0:
-        print('Existing bookmark %s: "%s", added.' % (type, m.title))
-        # flash('Existing bookmark %s: "%s", added.' % (type, m.title), category='success')
-        return redirect(url_for('marks.allmarks'))
-    else:
-        if url_domain in ['google1', 'upwork1', 'qlik1']:
-            m.tags.append(Tag(url_domain))
-
-            db.session.add(m)
-            db.session.commit()
-
-            return redirect(url_for('marks.allmarks'))
-        
-        elif url_domain in ['youtube', 'youtu'] and check_url_video(url):
-            print(url_domain)
-            youtube_info_dict = get_youtube_info(url)
-            m.title = youtube_info_dict['title']
-            m.description = youtube_info_dict['description']
-            youtube_info_dict['subtitles'] = youtube_info_dict['subtitles'].replace('\n', '<br/>')
-            m.full_html = youtube_info_dict['description'] +  youtube_info_dict['subtitles']
-
-            m.tags.append(Tag(url_domain))
-            m.tags.append(Tag('video'))
-
-            # some videos don't have channel
-            if youtube_info_dict['uploader']: 
-                m.tags.append(Tag(youtube_info_dict['uploader']))
-
-            for auto_tag in youtube_info_dict['tags']:
-                m.tags.append(Tag(auto_tag))
-
-            db.session.add(m)
-            db.session.commit()
-            return redirect(url_for('marks.allmarks'))
-    
-        
-        if ('text' not in requests.head(url).headers.get('content-type', 'none')):
-            print('url not text 1')
-            return
-
-        article = Article(url)
-
-        try:
-            article.download()
-        except ArticleBinaryDataException:
-            print(f"URL {url} is binary data")
-            
-        try:
-            article.parse()
-            article.nlp()
-        except:
-            print(f"Article {url} not working: article not able to be parsed")
-        else:
-            if article.is_parsed:
-                full_html = article.html
-                # soup_page = BSoup(full_html, features="lxml")
-
-                if full_html:
-                    readable = Document(full_html)
-                    readable_html = readable.summary()
-                    readable_title = readable.title()
-                    m.full_html = readable_html
-                    m.description = article.summary
-                else:
-                    m.full_html = article.summary
-                    m.description = article.summary
-            else:
-                m.full_html = url
-
-            if readable_title:
-                m.title = readable_title
-            else:
-                m.title = url
-            
-            
-            # Add tags and keywords here
-            m.tags.append(Tag(url_domain))
-
-            for auto_tag in article.keywords[:5]:
-                m.tags.append(Tag(auto_tag))
-                
-    db.session.add(m)
-    db.session.commit()
-    print('New %s: "%s", added.' % (type, m.title))
-
-    
-    return redirect(url_for('marks.allmarks'))
-
-
-
-
-from itertools import islice
-
-def thread_import_file_n(text_file_path, app, user_id):
-    maxthreads = 10
+def thread_import_file(text_file_path, app, user_id):
+    maxthreads = 20
     global status
     global total_lines
-    # total_lines = 0 
     status = 0
     i = 0
 
@@ -577,56 +420,8 @@ def thread_import_file_n(text_file_path, app, user_id):
 
 def marks_import_threads(url_user_id):
     url, user_id = url_user_id
-    with app.app_context():
-        # test if it looks like url
-        if not uri_validator(url):
-            print("not valid uri")
-            return None
-        else:
-            existing_mark = Mark.query.filter(Mark.url == url, Mark.owner_id == user_id).all()
-        
-        if len(existing_mark) > 0:
-            app.logger.debug('Mark with this url "%s" already exists.' % (url))
-            print("exists!")
-            return None
-        else:
-            r = MarksImportThread(url, user_id)
-            r.run()
-
-
-def thread_import_file(text_file_path, app, user_id):
-
-    global status
-    global total_lines
-    # total_lines = 0 
-    status = 0
-    i = 0
-    with open(text_file_path) as fp:
-        while True:
-            status += 1
-            line = fp.readline()
-            if not line:
-                break
-            print("Line{}: {}".format(status, line.strip()))
-            url = line.strip()
-            with app.app_context():
-                # test if it looks like url
-                if not uri_validator(url):
-                    print("not valid uri")
-                    continue 
-
-                existing_mark = Mark.query.filter(Mark.url == url, Mark.owner_id == user_id).all()
-                if len(existing_mark) > 0:
-                    app.logger.debug('Mark with this url "%s" already exists.' % (url))
-                    print("exists!")
-                    continue
-
-            maxthreads = 10
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as exe:
-                i = i + 1
-                print(i)
-                rrr = MarksImportThread(url, user_id)
-                exe.submit(rrr.run())
+    r = MarksImportThread(url, user_id)
+    r.run()
 
 
 @marks.route('/marks/import', methods=['GET', 'POST'])
@@ -659,18 +454,15 @@ def import_marks():
 
             print('Total Lines', total_lines + 1)
 
-            t1 = Thread(target=thread_import_file_n, args=(text_file_path, current_app._get_current_object(), u.id))
+            t1 = Thread(target=thread_import_file, args=(text_file_path, current_app._get_current_object(), u.id))
             t1.start()
 
         flash('%s marks imported' % (count), category='success')
         return render_template('profile/import_progress.html', total_lines=total_lines, status=1 )
     
-    
     status = 0
-    # total_lines = 0
+    
     return render_template('profile/import_progress.html', form=form, status=0)
-
-    return render_template('profile/import_progress.html')
   
 
 @app.route('/marks/import/status', methods=['GET', 'POST'])

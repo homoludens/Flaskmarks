@@ -37,11 +37,9 @@ from ..models.tag import Tag
 
 
 class MarksImportThread():
-    # constructor
+
     def __init__(self, url, user_id):
-        # execute the base constructor
         Thread.__init__(self)
-        # set a default value
         self.url = url
         self.user_id = user_id
         self.m = None
@@ -49,15 +47,46 @@ class MarksImportThread():
 
     # function executed in a new thread
     def run(self):
-        self.get_url_data()
-        return
+        if self.is_url_valid(self.url, self.user_id):
+            self.get_url_data()
+        return self.m
 
+
+    def uri_validator(self, url_to_test):
+        """
+        Validate URL
+        return true or false
+        """
+        try:
+            result = urlparse(url_to_test)
+            return all([result.scheme, result.netloc])
+        except:
+            return False
+
+
+    def is_url_valid(self, url, user_id):
+        with app.app_context():
+            # test if it looks like url
+            if not self.uri_validator(url):
+                print("not valid uri")
+                return False
+            else:
+                existing_mark = Mark.query.filter(Mark.url == url, Mark.owner_id == user_id).all()
+            
+            if len(existing_mark) > 0:
+                app.logger.debug('Mark with this url "%s" already exists.' % (url))
+                print("exists!")
+                return False
+            else:
+                return True
+                r = MarksImportThread(url, user_id)
+                r.run()
 
     def get_url_data(self):
         url = self.url
 
         # print(f"Total Active threads are {threading.activeCount()}")
-        print(f"new_imported_mark_thread: {url}")
+        # print(f"new_imported_mark_thread: {url}")
         
         url_domain = tldextract.extract(url).domain
         readable_title = None
@@ -151,7 +180,7 @@ class MarksImportThread():
         self.m = m
         self.insert_mark_thread()
         
-        return   
+        return
 
     def insert_mark_thread(self):
         data = self.m
