@@ -2,7 +2,7 @@
 {% block content %}
     <div class="container" role="main">
         {% include "flash.html" %}
-        {% if marks.items %}
+        {% if marks %}
             {% include "mark/list.html" %}
         {% else %}
             <h3>No marks found...</h3>

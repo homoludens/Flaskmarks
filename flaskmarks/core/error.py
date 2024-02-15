@@ -1,8 +1,8 @@
 # flaskmarks/core/error.py
 
 from flask import flash, redirect, url_for, g, request
-from flask.ext.login import current_user
-from urlparse import urlparse, urljoin
+from flask_login import current_user
+from urllib.parse import urlparse, urljoin
 from .setup import app, lm
 from ..models import User
 
@@ -21,7 +21,7 @@ def before_request():
 def unauthorized(error):
     if request.referrer \
         and is_safe_url(request.referrer) \
-            and request.referrer is not "/":
+            and request.referrer != "/":
         flash('Unauthorized access.', category='danger')
     return redirect(url_for('auth.login'))
 

@@ -14,3 +14,8 @@
 - [x] Blueprint the views, and cleanup code!
 - [x] Tags for all object types.
 - [x] Export / Import marks.
+- [ ] Get page from wayback machine archive.org if page does not exist
+- [ ] save every URL/page to wayback machine
+- [ ] add site url or site name as tag
+- [ ] if youtube link download subtitles and description as text for searching
+- [ ] LLM intergration langchaing + lama2 

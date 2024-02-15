@@ -1,5 +1,5 @@
 <ul class="list-group">
-    {% for mark in marks.items %}
+    {% for mark in marks %}
     <li class="list-group-item">
         <h4 class="list-group-item-heading">
             {% if mark.type not in mark.valid_feed_types %}
@@ -25,17 +25,14 @@
             <div>{{ mark.description }}</div>
         {% endif %}
 
-
         {% if mark.tags %}
             <div class="btn-toolbar btn-group-xs" role="toolbar">
                 <div class="btn-group btn-group-xs">
                     {% for m in mark.tags %}
-            
                         <a href="{{ url_for('marks.mark_q_tag', slug=m.title) }}" class="btn btn-default"><span class="glyphicon glyphicon-tag"></span> {{ m.title }}</a>
                     {% endfor %}
                 </div>
                 <a href="{{ url_for('marks.edit_mark', id=mark.id) }}" class="btn btn-default"><span class="glyphicon glyphicon-edit"></span> edit</a>
-
                 <a href="{{ url_for('marks.view_html_mark', id=mark.id) }}" class="btn btn-default"><span class="glyphicon glyphicon-globe"></span> View html</a>
             </div>
         {% endif %}
@@ -52,3 +49,24 @@
 {% endif %}
 </ul>
 
+
+{% macro render_pagination(pagination, endpoint) %}
+  <div class=page-items>
+    {{ pagination.first }} - {{ pagination.last }} of {{ pagination.total }}
+  </div>
+  <div class=pagination>
+    {% for page in pagination.iter_pages() %}
+      {% if page %}
+        {% if page != pagination.page %}
+          <a href="{{ url_for(endpoint, slug=request.view_args.get('slug'), page=page) }}">{{ page }}</a>
+        {% else %}
+          <strong>{{ page }}</strong>
+        {% endif %}
+      {% else %}
+        <span class=ellipsis>…</span>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{{ render_pagination(marks, request.endpoint)}}

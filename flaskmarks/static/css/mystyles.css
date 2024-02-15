@@ -1,2 +1,10 @@
 @charset "UTF-8";
 /* CSS Document */
+img {
+    vertical-align: middle;
+    width: 90%;
+}
+
+.container .full_html {
+    white-space: pre-wrap;
+}

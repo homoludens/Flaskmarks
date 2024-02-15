@@ -14,7 +14,7 @@ class User(db.Model):
     email = db.Column(db.Unicode(255), unique=True, nullable=False)
     password = db.Column(db.Unicode(255), nullable=False)
     last_logged = db.Column(db.DateTime)
-    per_page = db.Column(db.SmallInteger, default=10)
+    per_page = db.Column(db.SmallInteger, default=50)
     sort_type = db.Column(db.Unicode(255), default=u'clicks')
 
     marks = db.relationship('Mark', backref='owner', lazy='dynamic')
@@ -42,16 +42,17 @@ class User(db.Model):
             base = base.order_by(asc(Mark.created))
         if self.sort_type == u'datedesc':
             base = base.order_by(desc(Mark.created))
-        return base.paginate(page, self.per_page, False)
+        return base.paginate(page=page, per_page=self.per_page, error_out=False)
+
 
     def recent_marks(self, page, type):
         if type == 'added':
             base = self.my_marks().order_by(desc(Mark.created))
-            return base.paginate(page, self.per_page, False)
+            return base.paginate(page=page, per_page=self.per_page, error_out=False)
         if type == 'clicked':
             base = self.my_marks().filter(Mark.clicks > 0)\
                                   .order_by(desc(Mark.last_clicked))
-            return base.paginate(page, self.per_page, False)
+            return base.paginate(page=page, per_page=self.per_page, error_out=False)
         return False
 
     def get_mark_by_id(self, id):
@@ -65,7 +66,7 @@ class User(db.Model):
 
     def q_marks_by_tag(self, tag, page):
         return self.my_marks().filter(Mark.tags.any(title=tag))\
-                              .paginate(page, self.per_page, False)
+                              .paginate(page=page, per_page=self.per_page, error_out=False)
 
     def q_marks_by_string(self, page, string, marktype):
         string = "%"+string+"%"
@@ -74,7 +75,7 @@ class User(db.Model):
                                           Mark.full_html.like(string),
                                           Mark.description.like(string)))
         return base.order_by(desc(Mark.clicks))\
-                   .paginate(page, self.per_page, False)
+                   .paginate(page=page, per_page=self.per_page, error_out=False)
 
     def q_marks_by_url(self, string):
         return self.my_marks().filter(Mark.url == string).first()
@@ -84,7 +85,7 @@ class User(db.Model):
 
     def tags_by_click(self, page):
         return self.my_tags().order_by(Tag.marks.any(Mark.clicks))\
-                             .paginate(page, self.per_page, False)
+                             .paginate(page=page, per_page=self.per_page, error_out=False)
 
     def authenticate_user(self, password):
         return bcrypt.check_password_hash(self.password, password)
@@ -99,7 +100,7 @@ class User(db.Model):
         return True
 
     def get_id(self):
-        return unicode(self.id)
+        return self.id
 
     def __repr__(self):
         return '<User %r>' % (self.username)

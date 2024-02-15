@@ -6,7 +6,9 @@
         <h2>View HTML {{ mark.type }} - {{ mark.title|truncate(50) }}</h2>
         <div class="btn-toolbar btn-group-xs" role="toolbar">
             <div class="btn-group btn-group-xs">
-                {{mark.full_html|safe}}
+                <div class="full_html">
+                    {{mark.full_html|safe}}
+                </div>
             </div>
         </div>
     </div>

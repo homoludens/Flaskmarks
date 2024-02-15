@@ -8,7 +8,7 @@ from flask import (
     redirect,
     url_for,
 )
-from flask.ext.login import (
+from flask_login import (
     login_required,
     login_user,
     logout_user
@@ -23,7 +23,7 @@ auth = Blueprint('auth', __name__)
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    if g.user.is_authenticated():
+    if g.user.is_authenticated:
         return redirect(url_for('marks.allmarks'))
     form = LoginForm()
     """

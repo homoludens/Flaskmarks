@@ -1,7 +1,7 @@
 # flaskmarks/views/tags.py
 
 from flask import Blueprint, render_template, g
-from flask.ext.login import login_required
+from flask_login import login_required
 
 tags = Blueprint('tags', __name__)
 

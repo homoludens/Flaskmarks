@@ -18,19 +18,26 @@ This can be used as "Read latter" app.
 Setting up virual envirement
 ============================
 
-$ sudo pip install virtualenv
-$ virtualenv venv
-$ . venv/bin/activate
+* `$ sudo pip install virtualenv`
+* `$ virtualenv venv`
+* `$ . venv/bin/activate`
 
 Install
 =======
 * Create and activate a python virtualenv.
 * make a copy of config.py.example to config.py and edit accordingly.
-* run: `pip install -r requirements.txt`.
-* run: `python run.py db init`
-* run: `python run.py db migrate`
-* run: `python run.py db upgrade`
-* run: `python run.py runserver`
+* run: `pip install -r requirements.txt`
+* run: `flask --app flaskmarks db init`
+* run: `flask --app flaskmarks db migrate -m "MIGRATION DESCRIPTION"`
+* run: `flask --app flaskmarks db upgrade`
+* run: `flask --app flaskmarks db`
+
+
+>>> python3
+>>> import nltk
+>>> nltk.download('punkt')
+>>> nltk.download('averaged_perceptron_tagger')
+>>> nltk.download('wordnet')
 
 
 Exit virtualenv
@@ -77,3 +84,29 @@ Useful Links
 * [Flask Blueprints](http://flask.pocoo.org/docs/blueprints/)
 * [Flask-WhooshAlchemy](https://github.com/gyllstromk/Flask-WhooshAlchemy)
 * [python-readability](https://github.com/buriy/python-readability)
+
+
+Using
+====
+
+Import of firefox bookmark from exported json kinda works. Go to "Show all bookmarks" and than to "Backup".
+
+
+Keyword extraction options
+==========================
+
+I have tried this options for keyword extraction. Newspaper3k is the current one.
+
+* https://github.com/codelucas/newspaper - Newspaper3k: Article scraping & curation
+* https://radimrehurek.com/gensim/ - Analyze plain-text documents for semantic structure
+* https://github.com/csurfer/rake-nltk - Rapid Automatic Keyword Extraction algorithm
+
+
+TODO
+====
+
+* try out http://getskeleton.com css instead of bootstrap, looks much simpler.
+
+
+
+

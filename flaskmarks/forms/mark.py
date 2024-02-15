@@ -3,11 +3,11 @@
 from .base import Form, strip_filter
 from ..core.setup import db
 from ..models.tag import Tag
-import flask.ext.whooshalchemy
+#import flask_whooshalchemy
 
 from wtforms import (
     Field,
-    TextField,
+    StringField,
     TextAreaField,
     BooleanField,
     PasswordField,
@@ -20,7 +20,7 @@ from wtforms import (
 )
 
 
-class TagListField(TextField):
+class TagListField(StringField):
     """
     Code inspired from WTForms Documentation.
     http://wtforms.simplecodes.com/docs/1.0.2/fields.html#custom-fields
@@ -50,7 +50,7 @@ class TagListField(TextField):
             self.data = []
 
 
-class YoutubeChannelField(TextField):
+class YoutubeChannelField(StringField):
 
     def process_formdata(self, valuelist):
         data = valuelist[0].strip()
@@ -62,7 +62,7 @@ class YoutubeChannelField(TextField):
 
 class MarkForm(Form):
     referrer = HiddenField([validators.URL(require_tld=False)])
-    title = TextField('Title',
+    title = StringField('Title',
                       [validators.Length(min=0, max=255)],
                       filters=[strip_filter])
 
@@ -70,7 +70,7 @@ class MarkForm(Form):
                                 [validators.optional(),
                                 validators.length(max=4096)])
 
-    url = TextField('URL',
+    url = StringField('URL',
                     [validators.Length(min=4, max=512),
                      validators.URL(require_tld=False,
                                     message='Not a valid URL')],
@@ -87,7 +87,7 @@ class MarkEditForm(MarkForm):
 
 class YoutubeMarkForm(Form):
     referrer = HiddenField([validators.URL(require_tld=False)])
-    title = TextField('Title',
+    title = StringField('Title',
                       [validators.Length(min=0, max=255)],
                       filters=[strip_filter])
     url = YoutubeChannelField('User/Channel',
